@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class ASPP_CNN(nn.Module) :
+class AsppCNN(nn.Module) :
     """
     CNN with Atrous Spatial Pyramid Pooling (ASPP)
     Based on the architecture outlined in "Application of Explainable Artificial 
@@ -12,7 +12,7 @@ class ASPP_CNN(nn.Module) :
     Used to predict fire spread at the next timestep at each pixel location
     """
     def __init__(self, in_channels) :
-        super(ASPP_CNN, self).__init__()
+        super(AsppCNN, self).__init__()
 
         self.relu = nn.ReLU()
 
@@ -20,9 +20,9 @@ class ASPP_CNN(nn.Module) :
         self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
 
         self.aspp_conv1 = nn.Conv2d(128, 32, kernel_size=3, padding=1, dilation=1)
-        self.aspp_conv2 = nn.Conv2d(128, 32, kernel_size=3, padding=1, dilation=3)
-        self.aspp_conv3 = nn.Conv2d(128, 32, kernel_size=3, padding=1, dilation=6)
-        self.aspp_conv4 = nn.Conv2d(128, 32, kernel_size=3, padding=1, dilation=12)
+        self.aspp_conv2 = nn.Conv2d(128, 32, kernel_size=3, padding=3, dilation=3)
+        self.aspp_conv3 = nn.Conv2d(128, 32, kernel_size=3, padding=6, dilation=6)
+        self.aspp_conv4 = nn.Conv2d(128, 32, kernel_size=3, padding=12, dilation=12)
 
         self.conv3 = nn.Conv2d(128, 32, kernel_size=3, padding=1)
         self.conv4 = nn.Conv2d(32, 32, kernel_size=3, padding=1)

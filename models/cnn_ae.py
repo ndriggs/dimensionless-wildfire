@@ -5,19 +5,22 @@ import torchvision.models as models
 class UpsampleBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(UpsampleBlock, self).__init__()
-        self.conv = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.conv = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=3, stride=2, padding='same', output_padding=1)
+        self.batchnorm = nn.BatchNorm2d(out_channels)
         self.relu = nn.ReLU()
 
     def forward(self, x):
         return self.relu(self.conv(x))
 
 class CNNAutoEncoder(nn.Module):
-    def __init__(self):
+    def __init__(self, in_channels):
         super(CNNAutoEncoder, self).__init__()
         
         # Base model (MobileNetV2)
-        self.base_model = models.mobilenet_v2(pretrained=False)
-        self.base_model.features[0][0] = nn.Conv2d(12, 32, kernel_size=3, stride=2, padding=1, bias=False)
+        self.base_model = models.mobilenet_v2(weights=None)
+        self.base_model.features[0][0] = nn.Conv2d(in_channels, 32, kernel_size=3, stride=2, padding=1, bias=False)
+
+        print('num layers:', len(self.base_model.features))
         
         # Encoder (down_stack)
         self.down_stack = nn.ModuleList([
@@ -47,11 +50,16 @@ class CNNAutoEncoder(nn.Module):
         for down in self.down_stack:
             x = down(x)
             skips.append(x)
+
+        print(x.shape)
         
         skips = skips[::-1][1:]  # Reverse and remove last skip connection
         
         # Upsampling
+        i = 1
         for up, skip in zip(self.up_stack, skips):
+            print(i)
+            i += 1
             x = up(x)
             x = torch.cat([x, skip], dim=1)
         
