@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader, IterableDataset
 from tfrecord.torch.dataset import TFRecordDataset
 import torch
 import itertools
+import numpy as np
 
 # max, mean, min, and variance for each feature as found in the training data
 # used for scaling before inputting into network
@@ -39,6 +40,17 @@ def scale_and_concat_all_features(batch) :
     features = features.view(-1,19,64,64) # reshape to (B, C, H, W)
     return features
 
+def normalize_and_concat_all_features(batch) :
+    normalized_features = []
+    for key in DATA_STATS.keys() :
+        feature = batch[key].unsqueeze(1) # (B, H*W) -> (B, C, H*W)
+        normalized_feature = (feature - DATA_STATS[key][1]) / np.sqrt(DATA_STATS[key][3])
+        normalized_features.append(normalized_feature)
+    normalized_features.append(batch['viirs_PrevFireMask'].unsqueeze(1))
+    features = torch.cat(normalized_features, dim=1) # concat along the channels dimension
+    features = features.view(-1,19,64,64) # reshape to (B, C, H, W)
+    return features
+
 class MultiTFRecordDataset(IterableDataset):
     def __init__(self, file_patterns):
         self.datasets = [
@@ -53,31 +65,43 @@ train_files = [f'modified_ndws/train_conus_west_ndws_0{i:02}.tfrecord' for i in 
 train_dataset = MultiTFRecordDataset(train_files)
 train_loader = DataLoader(train_dataset, batch_size=200)
 
-train_datas = []
+train_scaled = []
+train_normalized = []
 for batch in train_loader : 
-    train_datas.append(scale_and_concat_all_features(batch))
+    train_scaled.append(scale_and_concat_all_features(batch))
+    train_normalized.append(normalize_and_concat_all_features(batch))
 
-scaled_training_data = torch.cat(train_datas, dim=0)
+scaled_training_data = torch.cat(train_scaled, dim=0)
+normalized_training_data = torch.cat(train_normalized, dim=0)
 torch.save(scaled_training_data, 'modified_ndws/scaled_training_data.pt')
+torch.save(normalized_training_data, 'modified_ndws/normalized_training_data.pt')
 
 test_files = [f'modified_ndws/test_conus_west_ndws_0{i:02}.tfrecord' for i in range(13)]
 test_dataset = MultiTFRecordDataset(test_files)
 test_loader = DataLoader(test_dataset, batch_size=200)
 
-test_datas = []
+test_scaled = []
+test_normalized = []
 for batch in test_loader : 
-    test_datas.append(scale_and_concat_all_features(batch))
+    test_scaled.append(scale_and_concat_all_features(batch))
+    test_normalized.append(normalize_and_concat_all_features(batch))
 
-scaled_test_data = torch.cat(test_datas, dim=0)
+scaled_test_data = torch.cat(test_scaled, dim=0)
+normalized_test_data = torch.cat(test_normalized, dim=0)
 torch.save(scaled_test_data, 'modified_ndws/scaled_test_data.pt')
+torch.save(normalized_test_data, 'modified_ndws/normalized_test_data.pt')
 
 val_files = [f'modified_ndws/eval_conus_west_ndws_0{i:02}.tfrecord' for i in range(7)]
 val_dataset = MultiTFRecordDataset(val_files)
 val_loader = DataLoader(val_dataset, batch_size=200)
 
-val_datas = []
+val_scaled = []
+val_normalized = []
 for batch in val_loader : 
-    val_datas.append(scale_and_concat_all_features(batch))
+    val_scaled.append(scale_and_concat_all_features(batch))
+    val_normalized.append(normalize_and_concat_all_features(batch))
 
-scaled_val_data = torch.cat(val_datas, dim=0)
+scaled_val_data = torch.cat(val_scaled, dim=0)
+normalized_val_data = torch.cat(val_normalized, dim=0)
 torch.save(scaled_val_data, 'modified_ndws/scaled_val_data.pt')
+torch.save(normalized_val_data, 'modified_ndws/normalized_val_data.pt')
