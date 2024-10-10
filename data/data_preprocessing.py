@@ -51,6 +51,10 @@ def normalize_and_concat_all_features(batch) :
     features = features.view(-1,19,64,64) # reshape to (B, C, H, W)
     return features
 
+def reshape_fire_mask(batch) :
+    fire_mask = batch['viirs_FireMask'].unsqueeze(1)
+    return fire_mask.view(-1,1,64,64)
+
 class MultiTFRecordDataset(IterableDataset):
     def __init__(self, file_patterns):
         self.datasets = [
@@ -67,14 +71,18 @@ train_loader = DataLoader(train_dataset, batch_size=200)
 
 train_scaled = []
 train_normalized = []
+train_fire_masks = [] 
 for batch in train_loader : 
     train_scaled.append(scale_and_concat_all_features(batch))
     train_normalized.append(normalize_and_concat_all_features(batch))
+    train_fire_masks.append(reshape_fire_mask(batch))
 
 scaled_training_data = torch.cat(train_scaled, dim=0)
 normalized_training_data = torch.cat(train_normalized, dim=0)
+train_fire_mask = torch.cat(train_fire_masks, dim=0)
 torch.save(scaled_training_data, 'modified_ndws/scaled_training_data.pt')
 torch.save(normalized_training_data, 'modified_ndws/normalized_training_data.pt')
+torch.save(train_fire_mask, 'modified_ndws/train_fire_masks.pt')
 
 test_files = [f'modified_ndws/test_conus_west_ndws_0{i:02}.tfrecord' for i in range(13)]
 test_dataset = MultiTFRecordDataset(test_files)
@@ -82,14 +90,18 @@ test_loader = DataLoader(test_dataset, batch_size=200)
 
 test_scaled = []
 test_normalized = []
+test_fire_masks = [] 
 for batch in test_loader : 
     test_scaled.append(scale_and_concat_all_features(batch))
     test_normalized.append(normalize_and_concat_all_features(batch))
+    test_fire_masks.append(reshape_fire_mask(batch))
 
 scaled_test_data = torch.cat(test_scaled, dim=0)
 normalized_test_data = torch.cat(test_normalized, dim=0)
+test_fire_mask = torch.cat(test_fire_masks, dim=0)
 torch.save(scaled_test_data, 'modified_ndws/scaled_test_data.pt')
 torch.save(normalized_test_data, 'modified_ndws/normalized_test_data.pt')
+torch.save(test_fire_mask, 'modified_ndws/test_fire_masks.pt')
 
 val_files = [f'modified_ndws/eval_conus_west_ndws_0{i:02}.tfrecord' for i in range(7)]
 val_dataset = MultiTFRecordDataset(val_files)
@@ -97,11 +109,15 @@ val_loader = DataLoader(val_dataset, batch_size=200)
 
 val_scaled = []
 val_normalized = []
+val_fire_masks = []
 for batch in val_loader : 
     val_scaled.append(scale_and_concat_all_features(batch))
     val_normalized.append(normalize_and_concat_all_features(batch))
+    val_fire_masks.append(reshape_fire_mask(batch))
 
 scaled_val_data = torch.cat(val_scaled, dim=0)
 normalized_val_data = torch.cat(val_normalized, dim=0)
+val_fire_mask = torch.cat(val_fire_masks, dim=0)
 torch.save(scaled_val_data, 'modified_ndws/scaled_val_data.pt')
 torch.save(normalized_val_data, 'modified_ndws/normalized_val_data.pt')
+torch.save(val_fire_mask, 'modified_ndws/val_fire_masks.pt')
