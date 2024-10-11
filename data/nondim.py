@@ -19,9 +19,11 @@ def dimensional_matrix(d_):
                 data[d].update({row: 0})
 
         # drop the unit row, so that dimensionless variables appear in the nullspace
-        del data[d][1]
+        if 1 in data[d].keys():
+            del data[d][1]
 
-    rows.remove(1)
+    if 1 in rows:
+        rows.remove(1)
 
     # make the matrix
     return Matrix([[data[var][dim] for var in cols] for dim in rows]), cols, rows

@@ -5,6 +5,7 @@ import itertools
 from sympy.physics import units
 from data import nondim
 import numpy as np
+import json
 
 
 class MultiTFRecordDataset(IterableDataset):
@@ -27,22 +28,57 @@ class MultiTFRecordDataset(IterableDataset):
 
 
 
+class Loader:
+    def __init__(self, path):
+        self.path = path
+
+    def __iter__(self):
+        yield np.load(self.path, allow_pickle=True)
+
 
 class NondimFireDataset(IterableDataset):
-    def __init__(self, file_patterns, units_dict):
-        self.units_dict = units_dict
-        self.nondims, self.cols, self.rows = nondim.dimensionless_vars(units_dict)
-        self.nondims = np.array(self.nondims).astype(float)
-        self.nondimensional = False
+    def __init__(self, file_patterns, units_dict=dict(), constants=dict(), positive=[], nondimensional=False):
+        self.nondimensional = nondimensional
+        if not self.nondimensional:
+            self.constants = constants
+            self.units_dict = units_dict
+            self.nondims, self.cols, self.rows = nondim.dimensionless_vars(units_dict)
+            self.nondims = np.array(self.nondims).astype(float).squeeze()
 
-        self.datasets = [
-            TFRecordDataset(file_pattern, index_path=None)
-            for file_pattern in file_patterns
-        ]
+            # set all values in positive to be positive in the nondim variables
+            for vec in self.nondims:
+                for i, var in enumerate(self.cols):
+                    if var in positive and vec[i] < 0:
+                        vec[i] = -vec[i]
 
-        self._nondimensionalize_data()
-        self.nondimensional = True
+            # check that all positive values are in fact positive
+            for vec in self.nondims:
+                for i, var in enumerate(self.cols):
+                    if var in positive:
+                        assert vec[i] >= 0, f"Some vectors cannot have all requested positive entries. Failed for {self.cols}, {vec}."
 
+            self.datasets = [
+                TFRecordDataset(file_pattern, index_path=None)
+                for file_pattern in file_patterns
+            ]
+
+            self._nondimensionalize_data(file_patterns)
+            self.nondimensional = True
+
+
+
+
+        else:  # nondimensional = True
+            self.nondims = np.load(file_patterns + "_nondims.npy")
+            self.cols = np.load(file_patterns + "_cols.npy")
+            self.rows = np.load(file_patterns + "_rows.npy")
+            self.constants = np.load(file_patterns + "_constants.npy")
+            with open(file_patterns + "_units.json", "rb") as f:
+                self.units_dict = json.load(f)
+
+            self.datasets = [
+                Loader(file_pattern) for file_pattern in file_patterns
+            ]
 
 
     def __iter__(self):
@@ -50,11 +86,41 @@ class NondimFireDataset(IterableDataset):
 
 
 
-    def _nondimensionalize_data(self):
+    def _nondimensionalize_data(self, paths):
         if self.nondimensional:
             raise ValueError("Dataset is already dimensionless.")
 
-        batches = []
-        for batch in self:
-            return
+        for i, (batch, path) in enumerate(zip(self, paths)):
+            # make data into shape (1, vars, batch, dim) and nondims into shape (nondim, vars, 1, 1), then broadcast and product out the vars dimension.
+            # FIXME: remove the string "elevation" from the below.
+            # print(batch["elevation"].shape)
+            data = np.expand_dims(np.array([batch[key] if key in batch.keys() else np.ones_like(batch["elevation"]) * self.constants[key] for key in self.cols]), 0)
+            # print(data.shape)
+            # print((data ** np.expand_dims(self.nondims, 2)).shape)
+            non_dim = (data ** np.expand_dims(self.nondims, 2)).prod(axis=1)
+            np.save(path+f"_0{i:02}.npy", non_dim, allow_pickle=False)
+
+        self.datasets = [
+            Loader(path+f"_0{i:02}.npy") for i, path in enumerate(paths)
+        ]
+
+
+    def dimensionalize(self, item):
+        return
+
+
+    def save(self, path):
+        num_batches = 0
+        for i, batch in enumerate(self):
+            np.save(path + f"_0{i:02}.npy", batch)
+            num_batches += 1
+
+        np.save(path + "_nondims.npy", self.nondims)
+        np.save(path + "_cols.npy", self.cols)
+        np.save(path + "_rows.npy", self.rows)
+        np.save(path + "_constants.npy", self.constants)
+        np.save(path + "_num_files.npy", [num_batches])
+        with open(path + "_units.json", "w") as f:
+            json.dump(f, self.units_dict)
+
 
