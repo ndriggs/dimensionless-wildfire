@@ -61,6 +61,13 @@ def impute_mean(variable) :
     return variable
 
 
+def impute_fire_mask(mask) :
+    # for -1 (unknown) values, set to 1 if at least 2 neighbors are 1, and to 0 otherwise
+    for (i, j) in zip(np.where(mask == -1)):
+        mask[i, j] = min(mask[i-1, j] + mask[i+1, j] + mask[i, j-1] + mask[i, j+1], 2) // 2
+    return mask
+
+
 class MultiTFRecordDataset(IterableDataset):
     def __init__(self, file_patterns):
         self.datasets = [
@@ -77,8 +84,8 @@ train_loader = DataLoader(train_dataset, batch_size=200)
 
 train_scaled = []
 train_normalized = []
-train_fire_masks = [] 
-for batch in train_loader : 
+train_fire_masks = []
+for batch in train_loader :
     train_scaled.append(scale_and_concat_all_features(batch))
     train_normalized.append(normalize_and_concat_all_features(batch))
     train_fire_masks.append(reshape_fire_mask(batch))
@@ -96,8 +103,8 @@ test_loader = DataLoader(test_dataset, batch_size=200)
 
 test_scaled = []
 test_normalized = []
-test_fire_masks = [] 
-for batch in test_loader : 
+test_fire_masks = []
+for batch in test_loader :
     test_scaled.append(scale_and_concat_all_features(batch))
     test_normalized.append(normalize_and_concat_all_features(batch))
     test_fire_masks.append(reshape_fire_mask(batch))
@@ -116,7 +123,7 @@ val_loader = DataLoader(val_dataset, batch_size=200)
 val_scaled = []
 val_normalized = []
 val_fire_masks = []
-for batch in val_loader : 
+for batch in val_loader :
     val_scaled.append(scale_and_concat_all_features(batch))
     val_normalized.append(normalize_and_concat_all_features(batch))
     val_fire_masks.append(reshape_fire_mask(batch))
