@@ -6,6 +6,7 @@ from sympy.physics import units
 from data import nondim
 import numpy as np
 import json
+from data.data_preprocessing import impute_mean, impute_fire_mask
 
 
 class MultiTFRecordDataset(IterableDataset):
@@ -97,6 +98,11 @@ class NondimFireDataset(IterableDataset):
             for batch in TFRecordDataset(path, index_path=None):
                 # make data into shape (1, vars, batch, dim) and nondims into shape (nondim, vars, 1, 1), then broadcast and product out the vars dimension.
                 # FIXME: remove the string "elevation" from the below.
+                # FIXME: do preprocessing elsewhere
+                batch["tmmx"] = impute_mean(batch["tmmx"])
+                batch["tmmn"] = impute_mean(batch["tmmn"])
+                batch["viirs_FireMask"] = impute_fire_mask(batch["viirs_FireMask"])
+                batch["viirs_PrevFireMask"] = impute_fire_mask(batch["viirs_PrevFireMask"])
                 data = np.expand_dims(np.array([batch[key] if key in batch.keys() else np.ones_like(batch["elevation"]) * self.constants[key] for key in self.cols]), 0)
                 non_dim.append((data ** np.expand_dims(self.nondims, 2)).prod(axis=1))
             np.save(path+f"_0{i:02}.npy", non_dim, allow_pickle=False)

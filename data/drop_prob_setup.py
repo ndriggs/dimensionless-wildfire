@@ -1,9 +1,6 @@
-
-from torch.utils.data import DataLoader
-import torch
-from notebooks import dataloader_test as dlt
 from sympy.physics import units
 
+# Setup 1: ignore all problematic variables; that is, give them units that exclude them from the nullspace of the dimensional matrix
 
 length = units.Dimension("length")
 population = units.Dimension("population")
@@ -14,6 +11,12 @@ energy = mass * velocity**2
 unit = units.Dimension(1)
 density = 1/length**2
 temperature = units.Dimension("temperature")
+precipitation = units.Dimension("precipitation")
+water = units.Dimension("water")
+impervious = units.Dimension("concrete")
+fuel1 = units.Dimension("fuel1")
+fuel2 = units.Dimension("fuel2")
+fuel3 = units.Dimension("fuel3")
 
 units_ = {
     'elevation': length,
@@ -23,15 +26,15 @@ units_ = {
     'NDVI': unit,
     'viirs_FireMask': unit,
     'viirs_PrevFireMask': unit,
-    'fuel1': unit,
-    'fuel2': unit,
-    'fuel3': unit,
-    'water': unit,
-    'impervious': unit,
+    'fuel1': fuel1,
+    'fuel2': fuel2,
+    'fuel3': fuel3,
+    'water': water,
+    'impervious': impervious,
     'erc': energy*density,  # energy release component
     'sph': unit,  # humidity
     'th': unit,  # wind direction
-    'pr': unit, # precipitation
+    'pr': precipitation, # precipitation
     'vs': velocity,  # wind speed
     'bi': unit,   # burning index
     'tmmx': temperature,
@@ -40,17 +43,6 @@ units_ = {
 }
 
 
-
-
-
-train_files = [f'../data/modified_ndws/train_conus_west_ndws_0{i:02}.tfrecord' for i in range(39)]
-test_files = [f'../data/modified_ndws/test_conus_west_ndws_0{i:02}.tfrecord' for i in range(39)]
-val_files = [f'../data/modified_ndws/eval_conus_west_ndws_0{i:02}.tfrecord' for i in range(39)]
-
-
-
-dataset = dlt.NondimFireDataset(train_files, units_, positive=["elevation", "population", "vs"], constants={"boltzmann": 1})
-loader = dlt.DataLoader(dataset, batch_size=32)
-
-
+positive=["elevation", "population", "vs", "erc"]
+constants={"boltzmann": 1.380649e-23}
 
