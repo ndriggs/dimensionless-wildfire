@@ -55,6 +55,12 @@ def reshape_fire_mask(batch) :
     fire_mask = batch['viirs_FireMask'].unsqueeze(1)
     return fire_mask.view(-1,1,64,64)
 
+
+def impute_mean(variable) :
+    variable[variable==0] = variable.mean()
+    return variable
+
+
 class MultiTFRecordDataset(IterableDataset):
     def __init__(self, file_patterns):
         self.datasets = [

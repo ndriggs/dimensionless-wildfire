@@ -33,7 +33,8 @@ class Loader:
         self.path = path
 
     def __iter__(self):
-        yield np.load(self.path, allow_pickle=True)
+        for thing in np.load(self.path, allow_pickle=True):
+            yield thing
 
 
 class NondimFireDataset(IterableDataset):
@@ -61,6 +62,7 @@ class NondimFireDataset(IterableDataset):
                 TFRecordDataset(file_pattern, index_path=None)
                 for file_pattern in file_patterns
             ]
+
 
             self._nondimensionalize_data(file_patterns)
             self.nondimensional = True
@@ -90,14 +92,13 @@ class NondimFireDataset(IterableDataset):
         if self.nondimensional:
             raise ValueError("Dataset is already dimensionless.")
 
-        for i, (batch, path) in enumerate(zip(self, paths)):
-            # make data into shape (1, vars, batch, dim) and nondims into shape (nondim, vars, 1, 1), then broadcast and product out the vars dimension.
-            # FIXME: remove the string "elevation" from the below.
-            # print(batch["elevation"].shape)
-            data = np.expand_dims(np.array([batch[key] if key in batch.keys() else np.ones_like(batch["elevation"]) * self.constants[key] for key in self.cols]), 0)
-            # print(data.shape)
-            # print((data ** np.expand_dims(self.nondims, 2)).shape)
-            non_dim = (data ** np.expand_dims(self.nondims, 2)).prod(axis=1)
+        for i, path in enumerate(paths):
+            non_dim = []
+            for batch in TFRecordDataset(path, index_path=None):
+                # make data into shape (1, vars, batch, dim) and nondims into shape (nondim, vars, 1, 1), then broadcast and product out the vars dimension.
+                # FIXME: remove the string "elevation" from the below.
+                data = np.expand_dims(np.array([batch[key] if key in batch.keys() else np.ones_like(batch["elevation"]) * self.constants[key] for key in self.cols]), 0)
+                non_dim.append((data ** np.expand_dims(self.nondims, 2)).prod(axis=1))
             np.save(path+f"_0{i:02}.npy", non_dim, allow_pickle=False)
 
         self.datasets = [
