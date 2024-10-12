@@ -10,6 +10,7 @@ import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--learning_rate', type=float, default=0.001)

@@ -63,8 +63,10 @@ def impute_mean(variable) :
 
 def impute_fire_mask(mask) :
     # for -1 (unknown) values, set to 1 if at least 2 neighbors are 1, and to 0 otherwise
-    for (i, j) in zip(np.where(mask == -1)):
-        mask[i, j] = min(mask[i-1, j] + mask[i+1, j] + mask[i, j-1] + mask[i, j+1], 2) // 2
+    if (mask == -1).sum() > 0:
+        #print(np.where(mask.reshape((64, 64)) == -1))
+        for (i, j) in zip(np.where(mask.reshape((64, 64)) == -1)):
+            mask[i, j] = min(mask[i-1, j] + mask[i+1, j] + mask[i, j-1] + mask[i, j+1], 2) // 2
     return mask
 
 

@@ -34,12 +34,12 @@ class Loader:
         self.path = path
 
     def __iter__(self):
-        for thing in np.load(self.path, allow_pickle=True):
-            yield thing
+        for x, y in zip(np.load(self.path +".npy", allow_pickle=True), np.load(self.path + "_target.npy", allow_pickle=True)):
+            yield x, y
 
 
 class NondimFireDataset(IterableDataset):
-    def __init__(self, file_patterns, units_dict=dict(), constants=dict(), positive=[], nondimensional=False):
+    def __init__(self, file_patterns, units_dict=dict(), constants=dict(), target="viirs_FireMask", positive=[], nondimensional=False):
         self.nondimensional = nondimensional
         if not self.nondimensional:
             self.constants = constants
@@ -65,7 +65,7 @@ class NondimFireDataset(IterableDataset):
             ]
 
 
-            self._nondimensionalize_data(file_patterns)
+            self._nondimensionalize_data(file_patterns, target)
             self.nondimensional = True
 
 
@@ -89,12 +89,13 @@ class NondimFireDataset(IterableDataset):
 
 
 
-    def _nondimensionalize_data(self, paths):
+    def _nondimensionalize_data(self, paths, target):
         if self.nondimensional:
             raise ValueError("Dataset is already dimensionless.")
 
         for i, path in enumerate(paths):
             non_dim = []
+            targets = []
             for batch in TFRecordDataset(path, index_path=None):
                 # make data into shape (1, vars, batch, dim) and nondims into shape (nondim, vars, 1, 1), then broadcast and product out the vars dimension.
                 # FIXME: remove the string "elevation" from the below.
@@ -104,11 +105,13 @@ class NondimFireDataset(IterableDataset):
                 batch["viirs_FireMask"] = impute_fire_mask(batch["viirs_FireMask"])
                 batch["viirs_PrevFireMask"] = impute_fire_mask(batch["viirs_PrevFireMask"])
                 data = np.expand_dims(np.array([batch[key] if key in batch.keys() else np.ones_like(batch["elevation"]) * self.constants[key] for key in self.cols]), 0)
+                targets.append(batch[target])
                 non_dim.append((data ** np.expand_dims(self.nondims, 2)).prod(axis=1))
             np.save(path+f"_0{i:02}.npy", non_dim, allow_pickle=False)
+            np.save(path + f"_0{i:02}_target.npy", targets, allow_pickle=False)
 
         self.datasets = [
-            Loader(path+f"_0{i:02}.npy") for i, path in enumerate(paths)
+            Loader(path+f"_0{i:02}") for i, path in enumerate(paths)
         ]
 
 

@@ -18,7 +18,6 @@ units_ = {
     'chili': unit,
     'pdsi': unit,
     'NDVI': unit,
-    'viirs_FireMask': unit,
     'viirs_PrevFireMask': unit,
     'fuel1': unit,
     'fuel2': unit,

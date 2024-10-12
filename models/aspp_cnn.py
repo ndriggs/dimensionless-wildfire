@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import pytorch_lightning as pl
 from torch.optim.lr_scheduler import PolynomialLR
 from torchmetrics import Precision, Recall, F1Score
+from training.training_utils import tversky_loss
 
 class AsppCNN(pl.LightningModule):
     def __init__(self, in_channels, learning_rate=1e-3, max_epochs=100, power=0.9):
@@ -55,15 +56,6 @@ class AsppCNN(pl.LightningModule):
         x = self.final_conv(x)
 
         return F.sigmoid(x)
-
-    def tversky_loss(y_pred, y_true, alpha=0.7, beta=0.3):
-        y_true = y_true.flatten()
-        y_pred = y_pred.flatten()
-        true_pos = torch.sum(y_true * y_pred)
-        false_neg = torch.sum(y_true * (1 - y_pred))
-        false_pos = torch.sum((1 - y_true) * y_pred)
-        tversky = true_pos / (true_pos + alpha * false_neg + beta * false_pos)
-        return 1 - tversky
 
     def training_step(self, batch, batch_idx):
         x, y = batch

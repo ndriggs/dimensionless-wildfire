@@ -1,6 +1,11 @@
 import torch
 import torch.nn as nn
 import torchvision.models as models
+import pytorch_lightning as pl
+from training.training_utils import tversky_loss
+from torch.optim.lr_scheduler import PolynomialLR
+
+
 
 class UpsampleBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -60,3 +65,64 @@ class CNNAutoEncoder(nn.Module):
         x = self.final_upsample(x)
         x = self.final_conv(x)
         return self.sigmoid(x)
+
+
+
+class LightningCNNAutoEncoder(pl.LightningModule):
+    def __init__(self, CNNAutoEncoder, learning_rate=1e-3, max_epochs=100, power=0.9):
+        super(LightningCNNAutoEncoder, self).__init__()
+        self.net = CNNAutoEncoder
+        self.learning_rate = learning_rate
+        self.power = power
+        self.max_epochs = max_epochs
+
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self.net(x)
+        loss = tversky_loss(y_hat, y)
+
+        self.log("train_loss", loss)
+        return loss
+
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        precision = self.precision(y_hat, y)
+        recall = self.recall(y_hat, y)
+        f1 = self.f1(y_hat, y)
+        self.log('val_precision', precision)
+        self.log('val_recall', recall)
+        self.log('val_f1', f1)
+
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        # loss = tversky_loss(y_hat, y)
+        precision = self.precision(y_hat, y)
+        recall = self.recall(y_hat, y)
+        f1 = self.f1(y_hat, y)
+        # self.log('test_loss', loss)
+        self.log('test_precision', precision)
+        self.log('test_recall', recall)
+        self.log('test_f1', f1)
+
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        scheduler = PolynomialLR(optimizer, total_iters=self.max_epochs, power=self.power)
+
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "epoch",
+                "frequency": 1,
+                "name": "polynomial_lr"
+            }
+        }
+
+
+

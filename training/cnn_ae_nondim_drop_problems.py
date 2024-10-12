@@ -1,56 +1,40 @@
 
-from torch.utils.data import DataLoader
-import torch
+
+from models.cnn_ae import LightningCNNAutoEncoder, CNNAutoEncoder
 from notebooks import dataloader_test as dlt
-from sympy.physics import units
+from data import drop_prob_setup as setup
 
 
-length = units.Dimension("length")
-population = units.Dimension("population")
-time = units.Dimension("time")
-velocity = length/time
-mass = units.Dimension("mass")
-energy = mass * velocity**2
-unit = units.Dimension(1)
-density = 1/length**2
-temperature = units.Dimension("temperature")
+import torch
 
-units_ = {
-    'elevation': length,
-    'population': population*density,
-    'chili': unit,
-    'pdsi': unit,
-    'NDVI': unit,
-    'viirs_FireMask': unit,
-    'viirs_PrevFireMask': unit,
-    'fuel1': unit,
-    'fuel2': unit,
-    'fuel3': unit,
-    'water': unit,
-    'impervious': unit,
-    'erc': energy*density,  # energy release component
-    'sph': unit,  # humidity
-    'th': unit,  # wind direction
-    'pr': unit, # precipitation
-    'vs': velocity,  # wind speed
-    'bi': unit,   # burning index
-    'tmmx': temperature,
-    'tmmn': temperature,
-    'boltzmann': energy/temperature
-}
+import pytorch_lightning as pl
 
 
-
-
-
+# Define datasets
 train_files = [f'../data/modified_ndws/train_conus_west_ndws_0{i:02}.tfrecord' for i in range(39)]
-test_files = [f'../data/modified_ndws/test_conus_west_ndws_0{i:02}.tfrecord' for i in range(39)]
-val_files = [f'../data/modified_ndws/eval_conus_west_ndws_0{i:02}.tfrecord' for i in range(39)]
+train_data = dlt.NondimFireDataset(train_files, setup.units_, positive=setup.positive, constants=setup.constants)
+train_loader = dlt.DataLoader(train_data, batch_size=32)
+
+test_files = [f'../data/modified_ndws/test_conus_west_ndws_0{i:02}.tfrecord' for i in range(13)]
+test_data = dlt.NondimFireDataset(test_files, setup.units_, positive=setup.positive, constants=setup.constants)
+test_loader = dlt.DataLoader(test_data, batch_size=32)
 
 
+# Define model
+model = LightningCNNAutoEncoder(CNNAutoEncoder(in_channels=(train_data.nondims)), learning_rate=1e-3, max_epochs=100, power=0.9)
+lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='epoch')
 
-dataset = dlt.NondimFireDataset(train_files, units_, positive=["elevation", "population", "vs"], constants={"boltzmann": 1})
-loader = dlt.DataLoader(dataset, batch_size=32)
+# Training setup
+trainer = pl.Trainer(
+    gpus=torch.cuda.device_count(),
+    max_epochs=2,
+    callbacks=[lr_monitor],
+    logger=pl.loggers.TensorBoardLogger('logs/'),
+    checkpoint_callback=pl.callbacks.ModelCheckpoint(dirpath='checkpoints/')
+)
 
 
-
+# the pytorch lightning docs call the test_loader val, which is probably standard practice. However, we are using
+# files with test in the name as the validation set, so I used the name test for this data.
+trainer.fit(model, train_loader, test_loader)
+trainer.test(model, test_loader)
