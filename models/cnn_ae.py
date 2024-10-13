@@ -4,8 +4,7 @@ import torchvision.models as models
 import pytorch_lightning as pl
 from training.training_utils import tversky_loss
 from torch.optim.lr_scheduler import PolynomialLR
-
-
+import np
 
 class UpsampleBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -17,9 +16,24 @@ class UpsampleBlock(nn.Module):
     def forward(self, x):
         return self.relu(self.batchnorm(self.conv(x)))
 
-class CNNAutoEncoder(nn.Module):
-    def __init__(self, in_channels):
+class CNNAutoEncoder(pl.LightningModule):
+    def __init__(self, in_channels, learning_rate=1e-3, max_epochs=100, power=0.9, 
+                 lr_schedule='sinexp', min_lr=5e-5, max_lr=6e-3, gamma=0.99994, cycle_length=2000):
         super(CNNAutoEncoder, self).__init__()
+        
+        self.save_hyperparameters()
+        self.learning_rate = learning_rate
+        self.max_epochs = max_epochs
+        self.power = power
+        self.lr_schedule = lr_schedule
+        self.min_lr = min_lr
+        self.max_lr
+        self.gamma = gamma
+        self.cycle_length = cycle_length
+
+        self.precision = Precision(task="binary")
+        self.recall = Recall(task="binary")
+        self.f1 = F1Score(task="binary")
         
         # Base model (MobileNetV2)
         self.base_model = models.mobilenet_v2(weights=None)
@@ -66,25 +80,12 @@ class CNNAutoEncoder(nn.Module):
         x = self.final_conv(x)
         return self.sigmoid(x)
 
-
-
-class LightningCNNAutoEncoder(pl.LightningModule):
-    def __init__(self, CNNAutoEncoder, learning_rate=1e-3, max_epochs=100, power=0.9):
-        super(LightningCNNAutoEncoder, self).__init__()
-        self.net = CNNAutoEncoder
-        self.learning_rate = learning_rate
-        self.power = power
-        self.max_epochs = max_epochs
-
-
     def training_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self.net(x)
+        y_hat = self(x)
         loss = tversky_loss(y_hat, y)
-
-        self.log("train_loss", loss)
+        self.log('train_loss', loss)
         return loss
-
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
@@ -96,33 +97,39 @@ class LightningCNNAutoEncoder(pl.LightningModule):
         self.log('val_recall', recall)
         self.log('val_f1', f1)
 
-
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        # loss = tversky_loss(y_hat, y)
         precision = self.precision(y_hat, y)
         recall = self.recall(y_hat, y)
         f1 = self.f1(y_hat, y)
-        # self.log('test_loss', loss)
         self.log('test_precision', precision)
         self.log('test_recall', recall)
         self.log('test_f1', f1)
 
-
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
-        scheduler = PolynomialLR(optimizer, total_iters=self.max_epochs, power=self.power)
-
+        
+        if self.lr_schedule == 'poly':
+            scheduler = PolynomialLR(optimizer, total_iters=self.max_epochs, power=self.power)
+            interval = "epoch"
+        elif self.lr_schedule == 'sinexp':
+            scheduler = torch.optim.lr_scheduler.LambdaLR(
+                optimizer,
+                lr_lambda=lambda step: (self.max_lr - self.min_lr) * 
+                ((self.gamma ** step) * np.abs(np.sin((np.pi * step) / (2 * self.cycle_length))))
+                + self.min_lr
+            )
+            interval = "step"
+        else:
+            raise ValueError("Invalid lr_schedule. Choose 'poly' or 'sinexp'.")
+        
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
                 "scheduler": scheduler,
-                "interval": "epoch",
+                "interval": interval,
                 "frequency": 1,
-                "name": "polynomial_lr"
+                "name": f"{self.lr_schedule}_lr"
             }
         }
-
-
-

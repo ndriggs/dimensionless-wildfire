@@ -7,12 +7,17 @@ from torchmetrics import Precision, Recall, F1Score
 from training.training_utils import tversky_loss
 
 class AsppCNN(pl.LightningModule):
-    def __init__(self, in_channels, learning_rate=1e-3, max_epochs=100, power=0.9):
+    def __init__(self, in_channels, learning_rate=1e-3, max_epochs=100, power=0.9, 
+                 lr_schedule='poly', min_lr=5e-5, max_lr=6e-3, gamma=0.99994, cycle_length=2000):
         super(AsppCNN, self).__init__()
-        self.save_hyperparameters()
         self.learning_rate = learning_rate
         self.max_epochs = max_epochs
         self.power = power
+        self.lr_schedule = lr_schedule
+        self.min_lr = min_lr
+        self.max_lr
+        self.gamma = gamma
+        self.cycle_length = cycle_length
 
         self.precision = Precision(task="binary")
         self.recall = Recall(task="binary")
@@ -91,14 +96,27 @@ class AsppCNN(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
-        scheduler = PolynomialLR(optimizer, total_iters=self.max_epochs, power=self.power)
+        
+        if self.lr_schedule == 'poly':
+            scheduler = PolynomialLR(optimizer, total_iters=self.max_epochs, power=self.power)
+            interval = "epoch"
+        elif self.lr_schedule == 'sinexp':
+            scheduler = torch.optim.lr_scheduler.LambdaLR(
+                optimizer,
+                lr_lambda=lambda step: (self.max_lr - self.min_lr) * 
+                ((self.gamma ** step) * np.abs(np.sin((np.pi * step) / (2 * self.cycle_length))))
+                + self.min_lr
+            )
+            interval = "step"
+        else:
+            raise ValueError("Invalid lr_schedule. Choose 'poly' or 'sinexp'.")
         
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
                 "scheduler": scheduler,
-                "interval": "epoch",
+                "interval": interval,
                 "frequency": 1,
-                "name": "polynomial_lr"
+                "name": f"{self.lr_schedule}_lr"
             }
         }
