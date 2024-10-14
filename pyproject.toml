@@ -7,4 +7,5 @@ name = "dimensionless-wildfire"
 version = "1.0"
 
 [tool.setuptools]
-packages = ["data", "models", "training", "notebooks"]
+package-dir = {"" = "src"}
+packages = ["dimensionless_wildfire"]

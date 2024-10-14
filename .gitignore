@@ -1,5 +1,5 @@
 *.tfrecord
 *.pyc
 *.pt
-dimensionless_wildfire.egg-info/*
+src/dimensionless_wildfire.egg-info/*
 dist/*

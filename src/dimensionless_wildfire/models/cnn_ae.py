@@ -1,15 +1,27 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torchvision.models as models
 import pytorch_lightning as pl
+from ..training.training_utils import tversky_loss
 from torch.optim.lr_scheduler import PolynomialLR
-from torchmetrics import Precision, Recall, F1Score
-from training.training_utils import tversky_loss
+import numpy as np
 
-class AsppCNN(pl.LightningModule):
+class UpsampleBlock(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(UpsampleBlock, self).__init__()
+        self.conv = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.batchnorm = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        return self.relu(self.batchnorm(self.conv(x)))
+
+class CNNAutoEncoder(pl.LightningModule):
     def __init__(self, in_channels, learning_rate=1e-3, max_epochs=100, power=0.9, 
-                 lr_schedule='poly', min_lr=5e-5, max_lr=6e-3, gamma=0.99994, cycle_length=2000):
-        super(AsppCNN, self).__init__()
+                 lr_schedule='sinexp', min_lr=5e-5, max_lr=6e-3, gamma=0.99994, cycle_length=2000):
+        super(CNNAutoEncoder, self).__init__()
+        
+        self.save_hyperparameters()
         self.learning_rate = learning_rate
         self.max_epochs = max_epochs
         self.power = power
@@ -22,45 +34,51 @@ class AsppCNN(pl.LightningModule):
         self.precision = Precision(task="binary")
         self.recall = Recall(task="binary")
         self.f1 = F1Score(task="binary")
-
-        self.relu = nn.ReLU()
-
-        self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-
-        self.aspp_conv1 = nn.Conv2d(128, 32, kernel_size=3, padding=1, dilation=1)
-        self.aspp_conv2 = nn.Conv2d(128, 32, kernel_size=3, padding=3, dilation=3)
-        self.aspp_conv3 = nn.Conv2d(128, 32, kernel_size=3, padding=6, dilation=6)
-        self.aspp_conv4 = nn.Conv2d(128, 32, kernel_size=3, padding=12, dilation=12)
-
-        self.conv3 = nn.Conv2d(128, 32, kernel_size=3, padding=1)
-        self.conv4 = nn.Conv2d(32, 32, kernel_size=3, padding=1)
-
-        self.batchnorm = nn.BatchNorm2d(32)
-
-        self.final_conv = nn.Conv2d(32, 1, kernel_size=1, padding=0)
+        
+        # Base model (MobileNetV2)
+        self.base_model = models.mobilenet_v2(weights=None)
+        self.base_model.features[0][0] = nn.Conv2d(in_channels, 32, kernel_size=3, stride=2, padding=1, bias=False)
+        
+        # Encoder (down_stack)
+        self.down_stack = nn.ModuleList([
+            self.base_model.features[:2],   # block_1_expand_relu
+            self.base_model.features[2:4],  # block_3_expand_relu
+            self.base_model.features[4:7],  # block_6_expand_relu
+            self.base_model.features[7:14], # block_13_expand_relu
+            self.base_model.features[14:17] # block_16_project
+        ])
+        
+        # Decoder (up_stack)
+        self.up_stack = nn.ModuleList([
+            UpsampleBlock(160, 96),
+            UpsampleBlock(96 + 96, 32),
+            UpsampleBlock(32 + 32, 24),
+            UpsampleBlock(24 + 24, 16)
+        ])
+        
+        # Final layers
+        self.final_upsample = nn.ConvTranspose2d(16+16, 1, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.final_conv = nn.Conv2d(1, 1, kernel_size=1, padding='same')
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        # first 2 conv layers
-        x = self.relu(self.conv1(x))
-        x = self.relu(self.conv2(x))
-
-        # aspp module
-        x1 = self.relu(self.aspp_conv1(x))
-        x2 = self.relu(self.aspp_conv2(x))
-        x3 = self.relu(self.aspp_conv3(x))
-        x4 = self.relu(self.aspp_conv4(x))
-        x = torch.cat((x1, x2, x3, x4), dim=1)
-
-        # next 2 conv layers
-        x = self.relu(self.conv3(x))
-        x = self.relu(self.conv4(x))
-        x = self.batchnorm(x)
-
-        # last layer
+        # Downsampling
+        skips = []
+        for down in self.down_stack:
+            x = down(x)
+            skips.append(x)
+        
+        skips = skips[::-1][1:]  # Reverse and remove last skip connection
+        
+        # Upsampling
+        for up, skip in zip(self.up_stack, skips):
+            x = up(x)
+            x = torch.cat([x, skip], dim=1)
+        
+        # Final layers
+        x = self.final_upsample(x)
         x = self.final_conv(x)
-
-        return F.sigmoid(x)
+        return self.sigmoid(x)
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -72,24 +90,19 @@ class AsppCNN(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        # loss = tversky_loss(y_hat, y)
         precision = self.precision(y_hat, y)
         recall = self.recall(y_hat, y)
         f1 = self.f1(y_hat, y)
-        # self.log('val_loss', loss)
         self.log('val_precision', precision)
         self.log('val_recall', recall)
         self.log('val_f1', f1)
 
-
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        # loss = tversky_loss(y_hat, y)
         precision = self.precision(y_hat, y)
         recall = self.recall(y_hat, y)
         f1 = self.f1(y_hat, y)
-        # self.log('test_loss', loss)
         self.log('test_precision', precision)
         self.log('test_recall', recall)
         self.log('test_f1', f1)
