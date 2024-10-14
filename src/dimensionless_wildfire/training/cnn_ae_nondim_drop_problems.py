@@ -1,8 +1,8 @@
 
 
-from models.cnn_ae import LightningCNNAutoEncoder, CNNAutoEncoder
-from notebooks import dataloader_test as dlt
-from data import drop_prob_setup as setup
+from ..models.cnn_ae import CNNAutoEncoder
+from ..notebooks import dataloader_test as dlt
+from ..data import drop_prob_setup as setup
 
 
 import torch
@@ -21,7 +21,7 @@ test_loader = dlt.DataLoader(test_data, batch_size=32)
 
 
 # Define model
-model = LightningCNNAutoEncoder(CNNAutoEncoder(in_channels=(train_data.nondims)), learning_rate=1e-3, max_epochs=100, power=0.9)
+model = CNNAutoEncoder(in_channels=(train_data.nondims), learning_rate=1e-3, max_epochs=100, power=0.9)
 lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='epoch')
 
 # Training setup
