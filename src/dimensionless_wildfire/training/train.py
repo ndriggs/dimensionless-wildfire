@@ -12,6 +12,9 @@ from ..data.fire_dataset import FireDataset
 from ..models.aspp_cnn import AsppCNN
 from ..models.cnn_ae import CNNAutoEncoder
 from ..notebooks.dataloader_test import NondimFireDataset
+from ..data import drop_prob_setup
+from ..data import keep_prob_setup
+from ..data import learn_prob_setup
 
 
 def parse_args():
@@ -28,7 +31,7 @@ def parse_args():
     parser.add_argument('--cycle_length', type=int, default=2000)
     parser.add_argument('--data', type=str)
     parser.add_argument('--accelerator', type=str, default='gpu')
-    parser.add_argument('--nondim_setup', type=str, default='none')
+    parser.add_argument('--nondim_setup', type=str, default=None)
     return parser.parse_args()
 
 def main():
@@ -62,6 +65,15 @@ def main():
 
     elif args.data == 'nondim':
         setup = args.nondim_setup
+        if setup is None:
+            raise ValueError('Must specify a non-dimensional setup')
+        elif setup is "keep":
+            setup = keep_prob_setup
+        elif setup is "drop":
+            setup = drop_prob_setup
+        elif setup is "learn":
+            setup = learn_prob_setup
+
         train_files = [f'../data/modified_ndws/train_conus_west_ndws_0{i:02}.tfrecord' for i in range(39)]
         train_dataset = NondimFireDataset(train_files, setup.units_, positive=setup.positive,
                                            constants=setup.constants)
