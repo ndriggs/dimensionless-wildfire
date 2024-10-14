@@ -73,6 +73,7 @@ def main():
     )
     
     trainer.fit(model, train_dataloader, val_dataloader)
+    trainer.fit(model, val_dataloader)
 
 if __name__ == '__main__':
     main()
