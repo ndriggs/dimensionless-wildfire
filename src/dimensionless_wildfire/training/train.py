@@ -15,6 +15,7 @@ from ..notebooks.dataloader_test import NondimFireDataset
 from ..data import drop_prob_setup
 from ..data import keep_prob_setup
 from ..data import learn_prob_setup
+from training_utils import HyperparameterLogger
 
 
 def parse_args():
@@ -22,7 +23,7 @@ def parse_args():
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--model', type=str, default='aspp_cnn')
-    parser.add_argument('--max_epochs', type=int, default=100)
+    parser.add_argument('--max_epochs', type=int, default=50)
     parser.add_argument('--lr_schedule', type=str, default='poly')
     parser.add_argument('--power', type=float, default=0.9)
     parser.add_argument('--min_lr', type=float, default=5e-5)
@@ -124,7 +125,9 @@ def main():
         # max_time = "00:12:00:00",
         # num_nodes = args.num_nodes,
     )
-    
+
+    hyperparameters = vars(args)
+    trainer.logger.log_hyperparams(hyperparameters)
     trainer.fit(model, train_dataloader, test_dataloader)
     trainer.test(model, val_dataloader)
 
