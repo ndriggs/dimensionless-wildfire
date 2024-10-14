@@ -16,6 +16,7 @@ from ..data import drop_prob_setup
 from ..data import keep_prob_setup
 from ..data import learn_prob_setup
 from training_utils import HyperparameterLogger
+import numpy as np
 
 
 def parse_args():
@@ -89,16 +90,23 @@ def main():
         train_files = [f'../data/modified_ndws/train_conus_west_ndws_0{i:02}.tfrecord' for i in range(39)]
         train_dataset = NondimFireDataset(train_files, setup.units_, positive=setup.positive,
                                            constants=setup.constants)
-        train_dataloader = DataLoader(train_dataset, batch_size=32)
+        train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size)
 
         val_files = [f'../data/modified_ndws/eval_conus_west_ndws_0{i:02}.tfrecord' for i in range(13)]
         val_dataset = NondimFireDataset(val_files, setup.units_, positive=setup.positive, constants=setup.constants)
-        val_dataloader = DataLoader(val_dataset, batch_size=32)
+        val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size)
 
-        # add in test dataloader 
+        test_files = [f'../data/modified_ndws/eval_conus_west_ndws_0{i:02}.tfrecord' for i in range(13)]
+        test_dataset = NondimFireDataset(test_files, setup.units_, positive=setup.positive, constants=setup.constants)
+        test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size)
 
     else:
         raise ValueError('Unrecognized value for --data')
+
+    if (args.data == 'scaled') or (args.data == 'normalized') :
+        experiment_name = f'{args.data}_{args.model}_{np.random.randint(100000)}'
+    elif args.data == 'nondim' :
+        experiment_name = f'nondim_{args.nondim_setup}_{np.random.randint(100000)}'
 
 
     in_channels = train_dataset[0].shape()[0]
@@ -121,7 +129,7 @@ def main():
         max_epochs=args.max_epochs,
         callbacks=[lr_monitor, checkpoint_callback],
         # fast_dev_run=2, #### for when testing
-        logger=pl.pytorch.loggers.TensorBoardLogger('logs/')
+        logger=pl.pytorch.loggers.TensorBoardLogger('logs/', name=experiment_name)
         # max_time = "00:12:00:00",
         # num_nodes = args.num_nodes,
     )
