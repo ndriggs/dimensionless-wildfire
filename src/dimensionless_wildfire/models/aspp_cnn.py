@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import pytorch_lightning as pl
+import lightning as pl
 from torch.optim.lr_scheduler import PolynomialLR
 from torchmetrics import Precision, Recall, F1Score
 from ..training.training_utils import tversky_loss
@@ -15,7 +15,7 @@ class AsppCNN(pl.LightningModule):
         self.power = power
         self.lr_schedule = lr_schedule
         self.min_lr = min_lr
-        self.max_lr
+        self.max_lr = max_lr
         self.gamma = gamma
         self.cycle_length = cycle_length
 
@@ -72,11 +72,11 @@ class AsppCNN(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        # loss = tversky_loss(y_hat, y)
+        loss = tversky_loss(y_hat, y)
         precision = self.precision(y_hat, y)
         recall = self.recall(y_hat, y)
         f1 = self.f1(y_hat, y)
-        # self.log('val_loss', loss)
+        self.log('val_loss', loss)
         self.log('val_precision', precision)
         self.log('val_recall', recall)
         self.log('val_f1', f1)
@@ -85,11 +85,11 @@ class AsppCNN(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        # loss = tversky_loss(y_hat, y)
+        loss = tversky_loss(y_hat, y)
         precision = self.precision(y_hat, y)
         recall = self.recall(y_hat, y)
         f1 = self.f1(y_hat, y)
-        # self.log('test_loss', loss)
+        self.log('test_loss', loss)
         self.log('test_precision', precision)
         self.log('test_recall', recall)
         self.log('test_f1', f1)

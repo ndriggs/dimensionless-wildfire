@@ -27,7 +27,7 @@ class CNNAutoEncoder(pl.LightningModule):
         self.power = power
         self.lr_schedule = lr_schedule
         self.min_lr = min_lr
-        self.max_lr
+        self.max_lr = max_lr
         self.gamma = gamma
         self.cycle_length = cycle_length
 
@@ -90,9 +90,11 @@ class CNNAutoEncoder(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
+        loss = tversky_loss(y_hat, y)
         precision = self.precision(y_hat, y)
         recall = self.recall(y_hat, y)
         f1 = self.f1(y_hat, y)
+        self.log('val_loss', loss)
         self.log('val_precision', precision)
         self.log('val_recall', recall)
         self.log('val_f1', f1)
@@ -100,9 +102,11 @@ class CNNAutoEncoder(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
+        loss = tversky_loss(y_hat, y)
         precision = self.precision(y_hat, y)
         recall = self.recall(y_hat, y)
         f1 = self.f1(y_hat, y)
+        self.log('test_loss', loss)
         self.log('test_precision', precision)
         self.log('test_recall', recall)
         self.log('test_f1', f1)
