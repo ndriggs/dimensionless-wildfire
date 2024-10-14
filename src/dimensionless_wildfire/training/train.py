@@ -41,28 +41,38 @@ def main():
     if args.data == 'scaled' :
         train_data = torch.load('src/dimensionless_wildfire/data/modified_ndws/scaled_training_data.pt')
         val_data = torch.load('src/dimensionless_wildfire/data/modified_ndws/scaled_val_data.pt')
+        test_data = torch.load('src/dimensionless_wildfire/data/modified_ndws/scaled_test_data.pt')
 
         train_targets = torch.load('src/dimensionless_wildfire/data/modified_ndws/train_fire_masks.pt')
         val_targets = torch.load('src/dimensionless_wildfire/data/modified_ndws/val_fire_masks.pt')
+        test_targets = torch.load('src/dimensionless_wildfire/data/modified_ndws/test_fire_masks.pt')
 
         train_dataset = FireDataset(train_data, train_targets)
         train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 
         val_dataset = FireDataset(val_data, val_targets)
         val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+
+        test_dataset = FireDataset(test_data, test_targets)
+        test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
 
     elif args.data == 'normalized' :
         train_data = torch.load('src/dimensionless_wildfire/data/modified_ndws/normalized_training_data.pt')
         val_data = torch.load('src/dimensionless_wildfire/data/modified_ndws/normalized_val_data.pt')
+        test_data = torch.load('src/dimensionless_wildfire/data/modified_ndws/normalized_test_data.pt')
 
         train_targets = torch.load('src/dimensionless_wildfire/data/modified_ndws/train_fire_masks.pt')
         val_targets = torch.load('src/dimensionless_wildfire/data/modified_ndws/val_fire_masks.pt')
+        test_targets = torch.load('src/dimensionless_wildfire/data/modified_ndws/test_fire_masks.pt')
 
         train_dataset = FireDataset(train_data, train_targets)
         train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 
         val_dataset = FireDataset(val_data, val_targets)
         val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+
+        test_dataset = FireDataset(test_data, test_targets)
+        test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
 
     elif args.data == 'nondim':
         setup = args.nondim_setup
@@ -80,9 +90,11 @@ def main():
                                            constants=setup.constants)
         train_dataloader = DataLoader(train_dataset, batch_size=32)
 
-        val_files = [f'../data/modified_ndws/val_conus_west_ndws_0{i:02}.tfrecord' for i in range(13)]
+        val_files = [f'../data/modified_ndws/eval_conus_west_ndws_0{i:02}.tfrecord' for i in range(13)]
         val_dataset = NondimFireDataset(val_files, setup.units_, positive=setup.positive, constants=setup.constants)
         val_dataloader = DataLoader(val_dataset, batch_size=32)
+
+        # add in test dataloader 
 
     else:
         raise ValueError('Unrecognized value for --data')
@@ -113,8 +125,8 @@ def main():
         # num_nodes = args.num_nodes,
     )
     
-    trainer.fit(model, train_dataloader, val_dataloader)
-    trainer.fit(model, val_dataloader)
+    trainer.fit(model, train_dataloader, test_dataloader)
+    trainer.test(model, val_dataloader)
 
 if __name__ == '__main__':
     main()
