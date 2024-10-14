@@ -133,4 +133,9 @@ class NondimFireDataset(IterableDataset):
         with open(path + "_units.json", "w") as f:
             json.dump(f, self.units_dict)
 
+    def __getitem__(self, item):
+        for i, batch in enumerate(self):
+            if i==item:
+                return batch
+
 

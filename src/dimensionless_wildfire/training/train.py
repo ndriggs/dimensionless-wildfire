@@ -32,6 +32,7 @@ def parse_args():
     parser.add_argument('--data', type=str)
     parser.add_argument('--accelerator', type=str, default='gpu')
     parser.add_argument('--nondim_setup', type=str, default=None)
+    parser.add_argument('')
     return parser.parse_args()
 
 def main():
@@ -83,14 +84,17 @@ def main():
         val_dataset = NondimFireDataset(val_files, setup.units_, positive=setup.positive, constants=setup.constants)
         val_dataloader = DataLoader(val_dataset, batch_size=32)
 
+    else:
+        raise ValueError('Unrecognized value for --data')
 
-    
+
+    in_channels = train_dataset[0].shape()[0]
     if args.model == 'aspp_cnn' :
-        model = AsppCNN(in_channels=19, learning_rate=args.learning_rate, max_epochs=args.max_epochs, 
+        model = AsppCNN(in_channels=in_channels, learning_rate=args.learning_rate, max_epochs=args.max_epochs,
                         power=args.power, lr_schedule=args.lr_schedule, min_lr=args.min_lr, 
                         max_lr=args.max_lr, gamma=args.gamma, cycle_length=args.cycle_length)
     elif args.model == 'cnn_ae' :
-        model = CNNAutoEncoder(in_channels=19, learning_rate=args.learning_rate, max_epochs=args.max_epochs, 
+        model = CNNAutoEncoder(in_channels=in_channels, learning_rate=args.learning_rate, max_epochs=args.max_epochs,
                                power=args.power, lr_schedule=args.lr_schedule, min_lr=args.min_lr, 
                                max_lr=args.max_lr, gamma=args.gamma, cycle_length=args.cycle_length)
 
