@@ -12,4 +12,4 @@
 export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
 
 # LOAD MODULES, INSERT CODE, AND RUN YOUR PROGRAMS HERE
-python -m dimensionless_wildfire.training.train --data "scaled"
+python -m dimensionless_wildfire.training.train --data "nondim" --model "aspp_cnn" --nondim_setup "drop"
