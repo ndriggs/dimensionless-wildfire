@@ -11,6 +11,7 @@ import os
 from ..data.fire_dataset import FireDataset
 from ..models.aspp_cnn import AsppCNN
 from ..models.cnn_ae import CNNAutoEncoder
+from ..notebooks.dataloader_test import NondimFireDataset
 
 
 def parse_args():
@@ -27,6 +28,7 @@ def parse_args():
     parser.add_argument('--cycle_length', type=int, default=2000)
     parser.add_argument('--data', type=str)
     parser.add_argument('--accelerator', type=str, default='gpu')
+    parser.add_argument('--nondim_setup', type=str, default='none')
     return parser.parse_args()
 
 def main():
@@ -35,18 +37,41 @@ def main():
     if args.data == 'scaled' :
         train_data = torch.load('src/dimensionless_wildfire/data/modified_ndws/scaled_training_data.pt')
         val_data = torch.load('src/dimensionless_wildfire/data/modified_ndws/scaled_val_data.pt')
+
+        train_targets = torch.load('src/dimensionless_wildfire/data/modified_ndws/train_fire_masks.pt')
+        val_targets = torch.load('src/dimensionless_wildfire/data/modified_ndws/val_fire_masks.pt')
+
+        train_dataset = FireDataset(train_data, train_targets)
+        train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+
+        val_dataset = FireDataset(val_data, val_targets)
+        val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+
     elif args.data == 'normalized' :
         train_data = torch.load('src/dimensionless_wildfire/data/modified_ndws/normalized_training_data.pt')
         val_data = torch.load('src/dimensionless_wildfire/data/modified_ndws/normalized_val_data.pt')
 
-    train_targets = torch.load('src/dimensionless_wildfire/data/modified_ndws/train_fire_masks.pt')
-    val_targets = torch.load('src/dimensionless_wildfire/data/modified_ndws/val_fire_masks.pt')
+        train_targets = torch.load('src/dimensionless_wildfire/data/modified_ndws/train_fire_masks.pt')
+        val_targets = torch.load('src/dimensionless_wildfire/data/modified_ndws/val_fire_masks.pt')
 
-    train_dataset = FireDataset(train_data, train_targets)
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+        train_dataset = FireDataset(train_data, train_targets)
+        train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 
-    val_dataset = FireDataset(val_data, val_targets)
-    val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+        val_dataset = FireDataset(val_data, val_targets)
+        val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+
+    elif args.data == 'nondim':
+        setup = args.nondim_setup
+        train_files = [f'../data/modified_ndws/train_conus_west_ndws_0{i:02}.tfrecord' for i in range(39)]
+        train_dataset = NondimFireDataset(train_files, setup.units_, positive=setup.positive,
+                                           constants=setup.constants)
+        train_dataloader = DataLoader(train_dataset, batch_size=32)
+
+        val_files = [f'../data/modified_ndws/val_conus_west_ndws_0{i:02}.tfrecord' for i in range(13)]
+        val_dataset = NondimFireDataset(val_files, setup.units_, positive=setup.positive, constants=setup.constants)
+        val_dataloader = DataLoader(val_dataset, batch_size=32)
+
+
     
     if args.model == 'aspp_cnn' :
         model = AsppCNN(in_channels=19, learning_rate=args.learning_rate, max_epochs=args.max_epochs, 

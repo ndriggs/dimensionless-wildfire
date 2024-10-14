@@ -3,10 +3,10 @@ from tfrecord.torch.dataset import TFRecordDataset
 import torch
 import itertools
 from sympy.physics import units
-from data import nondim
+from ..data import nondim
 import numpy as np
 import json
-from data.data_preprocessing import impute_mean, impute_fire_mask
+from ..data.data_preprocessing import impute_mean, impute_fire_mask
 
 
 class MultiTFRecordDataset(IterableDataset):
@@ -35,7 +35,7 @@ class Loader:
 
     def __iter__(self):
         for x, y in zip(np.load(self.path +".npy", allow_pickle=True), np.load(self.path + "_target.npy", allow_pickle=True)):
-            yield x, y
+            yield x.reshape((x.shape[0], 64, 64)), y.reshape((64, 64))
 
 
 class NondimFireDataset(IterableDataset):
