@@ -4,7 +4,7 @@
 
 from typing import Dict, List, Optional, Text, Tuple
 import tensorflow as tf
-from data import data_utils as du
+from ..data import data_utils as du
 
 """Constants for the data reader."""
 
