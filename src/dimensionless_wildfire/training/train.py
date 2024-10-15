@@ -30,7 +30,7 @@ def parse_args():
     parser.add_argument('--max_lr', type=float, default=6e-3)
     parser.add_argument('--gamma', type=float, default=0.99994)
     parser.add_argument('--cycle_length', type=int, default=2000)
-    parser.add_argument('--data', type=str)
+    parser.add_argument('--data', type=str, default=None)
     parser.add_argument('--accelerator', type=str, default='gpu')
     parser.add_argument('--nondim_setup', type=str, default=None)
     return parser.parse_args()
@@ -102,12 +102,12 @@ def main():
         raise ValueError('Unrecognized value for --data')
 
     if (args.data == 'scaled') or (args.data == 'normalized') :
-        experiment_name = f'{args.data}_{args.model}_{np.random.randint(100000)}'
+        experiment_name = f'{args.data}_{args.model}_{args.lr_schedule}_{np.random.randint(100000)}'
     elif args.data == 'nondim' :
-        experiment_name = f'nondim_{args.nondim_setup}_{np.random.randint(100000)}'
+        experiment_name = f'nondim_{args.nondim_setup}_{args.model}_{np.random.randint(100000)}'
 
-
-    in_channels = train_dataset[0].shape()[0]
+    first_item, _ = train_dataset[0]
+    in_channels = first_item.shape[0]
     if args.model == 'aspp_cnn' :
         model = AsppCNN(in_channels=in_channels, learning_rate=args.learning_rate, max_epochs=args.max_epochs,
                         power=args.power, lr_schedule=args.lr_schedule, min_lr=args.min_lr, 
@@ -126,16 +126,16 @@ def main():
         # devices=torch.cuda.device_count(),
         max_epochs=args.max_epochs,
         callbacks=[lr_monitor, checkpoint_callback],
-        fast_dev_run=2, #### for when testing
+        # fast_dev_run=2, # for when testing
+        enable_checkpointing=True, # so it returns the best model
         logger=pl.pytorch.loggers.TensorBoardLogger('logs/', name=experiment_name)
         # max_time = "00:12:00:00",
         # num_nodes = args.num_nodes,
     )
 
-    hyperparameters = vars(args)
-    trainer.logger.log_hyperparams(hyperparameters)
-    trainer.fit(model, train_dataloader, test_dataloader)
-    trainer.test(model, val_dataloader)
+    # Giving up on logging hyperparams with logger, will store them in experiment name 
+    best_model = trainer.fit(model, train_dataloader, test_dataloader)
+    trainer.test(best_model, val_dataloader)
 
 if __name__ == '__main__':
     main()

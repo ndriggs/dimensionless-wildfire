@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import lightning as pl
-from torch.optim.lr_scheduler import PolynomialLR
+from torch.optim.lr_scheduler import PolynomialLR, LambdaLR
 from torchmetrics import Precision, Recall, F1Score
 from ..training.training_utils import tversky_loss
 
@@ -101,7 +101,7 @@ class AsppCNN(pl.LightningModule):
             scheduler = PolynomialLR(optimizer, total_iters=self.max_epochs, power=self.power)
             interval = "epoch"
         elif self.lr_schedule == 'sinexp':
-            scheduler = torch.optim.lr_scheduler.LambdaLR(
+            scheduler = LambdaLR(
                 optimizer,
                 lr_lambda=lambda step: (self.max_lr - self.min_lr) * 
                 ((self.gamma ** step) * np.abs(np.sin((np.pi * step) / (2 * self.cycle_length))))

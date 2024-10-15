@@ -102,7 +102,7 @@ class NondimFireDataset(IterableDataset):
                 # FIXME: do preprocessing elsewhere
                 batch["tmmx"] = impute_mean(batch["tmmx"])
                 batch["tmmn"] = impute_mean(batch["tmmn"])
-                batch["viirs_FireMask"] = impute_fire_mask(batch["viirs_FireMask"])
+                batch["viirs_FireMask"] = impute_fire_mask(batch["viirs_FireMask"]) # pretty sure this is unnecessary and that it's all 0s and 1s but doesn't hurt
                 batch["viirs_PrevFireMask"] = impute_fire_mask(batch["viirs_PrevFireMask"])
                 data = np.expand_dims(np.array([batch[key] if key in batch.keys() else np.ones_like(batch["elevation"]) * self.constants[key] for key in self.cols]), 0)
                 targets.append(batch[target])
