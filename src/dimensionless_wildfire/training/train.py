@@ -23,7 +23,7 @@ def parse_args():
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--model', type=str, default='aspp_cnn')
-    parser.add_argument('--max_epochs', type=int, default=50)
+    parser.add_argument('--max_epochs', type=int, default=100)
     parser.add_argument('--lr_schedule', type=str, default='poly')
     parser.add_argument('--power', type=float, default=0.9)
     parser.add_argument('--min_lr', type=float, default=5e-5)
@@ -118,7 +118,7 @@ def main():
                                max_lr=args.max_lr, gamma=args.gamma, cycle_length=args.cycle_length)
 
     lr_monitor = LearningRateMonitor(logging_interval='epoch')
-    checkpoint_callback = ModelCheckpoint(monitor="val_loss")
+    checkpoint_callback = ModelCheckpoint(monitor="val_f1")
 
     # Training setup
     trainer = pl.Trainer(
@@ -128,14 +128,15 @@ def main():
         callbacks=[lr_monitor, checkpoint_callback],
         # fast_dev_run=2, # for when testing
         enable_checkpointing=True, # so it returns the best model
-        logger=pl.pytorch.loggers.TensorBoardLogger('logs/', name=experiment_name)
+        logger=pl.pytorch.loggers.TensorBoardLogger('logs/', name=experiment_name) 
         # max_time = "00:12:00:00",
         # num_nodes = args.num_nodes,
     )
-
-    # Giving up on logging hyperparams with logger, will store them in experiment name 
+ 
     best_model = trainer.fit(model, train_dataloader, test_dataloader)
     trainer.test(best_model, val_dataloader)
+
+    print(vars(args))
 
 if __name__ == '__main__':
     main()
