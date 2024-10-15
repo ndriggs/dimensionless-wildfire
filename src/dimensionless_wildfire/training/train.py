@@ -102,7 +102,7 @@ def main():
         raise ValueError('Unrecognized value for --data')
 
     if (args.data == 'scaled') or (args.data == 'normalized') :
-        experiment_name = f'{args.data}_{args.model}_{args.lr_schedule}_{np.random.randint(100000)}'
+        experiment_name = f'{args.data}_{args.model}_{args.lr_schedule}_{args.batch_size}_{np.random.randint(100000)}'
     elif args.data == 'nondim' :
         experiment_name = f'nondim_{args.nondim_setup}_{args.model}_{np.random.randint(100000)}'
 
