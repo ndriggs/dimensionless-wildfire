@@ -5,6 +5,7 @@ import lightning as pl
 from torch.optim.lr_scheduler import PolynomialLR, LambdaLR
 from torchmetrics import Precision, Recall, F1Score
 from ..training.training_utils import tversky_loss
+import numpy as np
 
 class AsppCNN(pl.LightningModule):
     def __init__(self, in_channels, learning_rate=1e-3, max_epochs=100, power=0.9, 
