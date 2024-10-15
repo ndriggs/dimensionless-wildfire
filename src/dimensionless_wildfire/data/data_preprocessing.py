@@ -69,7 +69,7 @@ def impute_fire_mask(mask) :
             mask[batch, channel, i, j] = max(mask[batch, channel, i-1, j], \
                  mask[batch, channel, i+1, j], mask[batch, channel, i, j-1], \
                     mask[batch, channel, i, j+1], 0)
-    return mask.view(-1, 1, 64*64)
+    return mask.reshape(-1, 1, 64*64)
 
 
 class MultiTFRecordDataset(IterableDataset):

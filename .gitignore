@@ -3,3 +3,4 @@
 *.pt
 src/dimensionless_wildfire.egg-info/*
 dist/*
+logs/*

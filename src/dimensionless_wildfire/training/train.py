@@ -15,7 +15,6 @@ from ..notebooks.dataloader_test import NondimFireDataset
 from ..data import drop_prob_setup
 from ..data import keep_prob_setup
 from ..data import learn_prob_setup
-from training_utils import HyperparameterLogger
 import numpy as np
 
 
@@ -34,7 +33,6 @@ def parse_args():
     parser.add_argument('--data', type=str)
     parser.add_argument('--accelerator', type=str, default='gpu')
     parser.add_argument('--nondim_setup', type=str, default=None)
-    parser.add_argument('')
     return parser.parse_args()
 
 def main():
@@ -80,23 +78,23 @@ def main():
         setup = args.nondim_setup
         if setup is None:
             raise ValueError('Must specify a non-dimensional setup')
-        elif setup is "keep":
+        elif setup == "keep":
             setup = keep_prob_setup
-        elif setup is "drop":
+        elif setup == "drop":
             setup = drop_prob_setup
-        elif setup is "learn":
+        elif setup == "learn":
             setup = learn_prob_setup
 
-        train_files = [f'../data/modified_ndws/train_conus_west_ndws_0{i:02}.tfrecord' for i in range(39)]
+        train_files = [f'src/dimensionless_wildfire/data/modified_ndws/train_conus_west_ndws_0{i:02}.tfrecord' for i in range(39)]
         train_dataset = NondimFireDataset(train_files, setup.units_, positive=setup.positive,
                                            constants=setup.constants)
         train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size)
 
-        val_files = [f'../data/modified_ndws/eval_conus_west_ndws_0{i:02}.tfrecord' for i in range(13)]
+        val_files = [f'src/dimensionless_wildfire/data/modified_ndws/eval_conus_west_ndws_0{i:02}.tfrecord' for i in range(13)]
         val_dataset = NondimFireDataset(val_files, setup.units_, positive=setup.positive, constants=setup.constants)
         val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size)
 
-        test_files = [f'../data/modified_ndws/eval_conus_west_ndws_0{i:02}.tfrecord' for i in range(13)]
+        test_files = [f'src/dimensionless_wildfire/data/modified_ndws/test_conus_west_ndws_0{i:02}.tfrecord' for i in range(13)]
         test_dataset = NondimFireDataset(test_files, setup.units_, positive=setup.positive, constants=setup.constants)
         test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size)
 
@@ -128,7 +126,7 @@ def main():
         # devices=torch.cuda.device_count(),
         max_epochs=args.max_epochs,
         callbacks=[lr_monitor, checkpoint_callback],
-        # fast_dev_run=2, #### for when testing
+        fast_dev_run=2, #### for when testing
         logger=pl.pytorch.loggers.TensorBoardLogger('logs/', name=experiment_name)
         # max_time = "00:12:00:00",
         # num_nodes = args.num_nodes,
