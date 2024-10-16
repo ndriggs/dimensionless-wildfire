@@ -4,3 +4,4 @@
 src/dimensionless_wildfire.egg-info/*
 dist/*
 logs/*
+job_output/*
