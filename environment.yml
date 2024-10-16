@@ -1,0 +1,17 @@
+name: fire_env
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11.9
+  - pytorch
+  - torchvision
+  - pytorch-cuda= # specify your cuda version e.g. 12.4
+  - lightning
+  - tensorflow
+  - matplotlib
+  - pip:
+      - dimensionless-wildfire
+      - tfrecord
